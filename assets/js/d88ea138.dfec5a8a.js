@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[8649],{3913:e=>{e.exports=JSON.parse('{"label":"facebook","permalink":"/cali2.0-experimental/blog/tags/facebook","allTagsPath":"/cali2.0-experimental/blog/tags","count":1,"unlisted":false}')}}]);
