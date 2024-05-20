@@ -24,6 +24,7 @@ use super::handlers::context::{
 use super::handlers::fetch_did::fetch_did_handler;
 use super::storage::root_key::add_root_key;
 use crate::verifysignature;
+use calimero_identity::auth::verify_eth_signature;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdminConfig {
@@ -161,14 +162,14 @@ async fn create_root_key_handler(
         .flatten()
     {
         Some(challenge) => {
-            if verifysignature::verify_near_signature(
-                &challenge.message.nonce,
-                &challenge.node_signature,
-                recipient,
-                &req.callback_url,
-                &req.signature,
-                &req.public_key,
-            ) {
+            if req.public_key.starts_with("0x") {
+                println!("ETH signature");
+                if let Err(err) =
+                    verify_eth_signature(&req.public_key, &challenge.node_signature, &req.signature)
+                {
+                    return (StatusCode::BAD_REQUEST, "Invalid signature");
+                }
+
                 let result = add_root_key(
                     &state.store,
                     RootKey {
@@ -190,7 +191,37 @@ async fn create_root_key_handler(
                     }
                 }
             } else {
-                (StatusCode::BAD_REQUEST, "Invalid signature")
+                if verifysignature::verify_near_signature(
+                    &challenge.message.nonce,
+                    &challenge.node_signature,
+                    recipient,
+                    &req.callback_url,
+                    &req.signature,
+                    &req.public_key,
+                ) {
+                    let result = add_root_key(
+                        &state.store,
+                        RootKey {
+                            signing_key: req.public_key.clone(),
+                        },
+                    );
+
+                    match result {
+                        Ok(_) => {
+                            info!("Root key added");
+                            (StatusCode::OK, "Root key added")
+                        }
+                        Err(e) => {
+                            error!("Failed to store root key: {}", e);
+                            (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                "Failed to store root key",
+                            )
+                        }
+                    }
+                } else {
+                    (StatusCode::BAD_REQUEST, "Invalid signature")
+                }
             }
         }
         _ => (StatusCode::BAD_REQUEST, "Challenge not found"),

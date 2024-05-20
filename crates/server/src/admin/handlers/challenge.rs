@@ -49,6 +49,7 @@ pub async fn request_challenge_handler(
     Json(req): Json<RequestChallenge>,
 ) -> impl IntoResponse {
     if let Some(challenge) = session.get::<String>(CHALLENGE_KEY).await.ok().flatten() {
+        println!("TU SE POZIVAM");
         match serde_json::from_str::<NodeChallenge>(&challenge) {
             Ok(challenge) => ApiResponse {
                 payload: RequestChallengeResponse { data: challenge },
@@ -63,6 +64,8 @@ pub async fn request_challenge_handler(
     } else {
         match generate_challenge(req.application_id.clone(), &state.keypair) {
             Ok(challenge) => {
+                println!("TU SE NE POZIVAM");
+
                 if let Err(err) = session.insert(CHALLENGE_KEY, &challenge).await {
                     error!("Failed to insert challenge into session: {}", err);
                     return ApiError {

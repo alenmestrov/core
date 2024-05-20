@@ -9,6 +9,7 @@ interface MetamaskContextProps {
   cardBackgroundColor: string | undefined;
   metamaskTitleColor: string | undefined;
   navigateBack: () => void | undefined;
+  addRootKey: boolean;
 }
 
 const MetamaskContext: React.FC<MetamaskContextProps> = ({
@@ -17,7 +18,8 @@ const MetamaskContext: React.FC<MetamaskContextProps> = ({
   successRedirect,
   cardBackgroundColor,
   metamaskTitleColor,
-  navigateBack
+  navigateBack,
+  addRootKey
 }) => {
   return (
     <MetaMaskUIProvider
@@ -47,6 +49,7 @@ const MetamaskContext: React.FC<MetamaskContextProps> = ({
             successRedirect={successRedirect}
             metamaskTitleColor={metamaskTitleColor}
             navigateBack={navigateBack}
+            addRootKey={addRootKey}
           />
         </div>
       </div>

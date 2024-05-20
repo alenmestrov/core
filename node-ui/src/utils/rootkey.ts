@@ -25,6 +25,7 @@ export const getParams = (location: Location): UrlParams => {
 };
 
 export const submitRootKeyRequest = async (params: UrlParams): Promise<submitRootKeyResponse> => {
+  console.log("🚀 ~ submitRootKeyRequest ~ params:", params)
   try {
     const response = await axios.post("/admin-api/root-key", params);
     const message = response.data;

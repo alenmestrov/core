@@ -88,6 +88,13 @@ export interface NearSignatureMessageMetadata extends SignatureMetadata {
   nonce: String;
 }
 
+export interface WalletLoginData {
+  message: string;
+  recipient: String;
+  nonceBase64: Buffer;
+  callbackUrl: String;
+}
+
 export interface EthSignatureMessageMetadata extends SignatureMetadata {
   //
 }
@@ -99,7 +106,20 @@ export interface WalletSignatureData {
 
 export interface LoginResponse {}
 
+export interface RootKeyRequest {
+  accountId: String;
+  signature: String;
+  publicKey: String;
+  callbackUrl: String;
+}
+
+export interface RootKeyResponse {
+  data?: string;
+  error?: string;
+}
+
 export interface NodeApi {
   login(loginRequest: LoginRequest, rpcBaseUrl: string): ApiResponse<LoginResponse>;
   requestChallenge(rpcBaseUrl: string, applicationId: string): ApiResponse<NodeChallenge>;
+  addRootKey(rootKeyRequest: RootKeyRequest, rpcBaseUrl: string): ApiResponse<RootKeyResponse>;
 }

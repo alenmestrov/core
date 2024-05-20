@@ -18,6 +18,7 @@ export default function Metamask() {
         rpcBaseUrl={config.nodeServerUrl}
         successRedirect={() => navigate("/")}
         navigateBack={() => navigate("/login")}
+        addRootKey={true}
       />
     </div>
   );

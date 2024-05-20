@@ -1,6 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { randomBytes } from "crypto";
-import { getOrCreateKeypair } from "../../crypto/ed25519";
+import React, { useState } from "react";
 import {
   MetaMaskButton,
   useAccount,
@@ -9,19 +7,8 @@ import {
   useSignMessage,
 } from "@metamask/sdk-react-ui";
 import apiClient from "../../api";
-import {
-  EthSignatureMessageMetadata,
-  LoginRequest,
-  NodeChallenge,
-  Payload,
-  SignatureMessage,
-  SignatureMessageMetadata,
-  WalletMetadata,
-  WalletSignatureData,
-  WalletType,
-} from "../../nodeApi";
+import { NodeChallenge } from "../../nodeApi";
 import { ResponseData } from "../../api-response";
-import { setStorageNodeAuthorized } from "../../storage/storage";
 import { Loading } from "../loading/Loading";
 
 interface LoginWithMetamaskProps {
@@ -30,6 +17,7 @@ interface LoginWithMetamaskProps {
   successRedirect: () => void;
   metamaskTitleColor: string | undefined;
   navigateBack: () => void | undefined;
+  addRootKey: boolean;
 }
 
 export default function LoginWithMetamask({
@@ -38,120 +26,51 @@ export default function LoginWithMetamask({
   successRedirect,
   metamaskTitleColor,
   navigateBack,
+  addRootKey,
 }: LoginWithMetamaskProps) {
   const { isConnected, address } = useAccount();
-  const [walletSignatureData, setWalletSignatureData] =
-    useState<WalletSignatureData | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { ready } = useSDK();
+  const [signedMessage, setMessage] = useState("default");
 
-  const signatureMessage = useCallback((): string | undefined => {
-    return walletSignatureData
-      ? walletSignatureData?.payload?.message.message
-      : undefined;
-  }, [walletSignatureData]);
-
-  const {
-    data: signData,
-    isError: isSignError,
-    isLoading: isSignLoading,
-    isSuccess: isSignSuccess,
-    signMessage,
-  } = useSignMessage({
-    message: signatureMessage(),
+  const { data: signData, signMessage } = useSignMessage({
+    message: signedMessage,
   });
 
-  const requestNodeData = useCallback(async () => {
+  const requestChallenge = async () => {
+    console.log(applicationId);
+    console.log(addRootKey);
     const challengeResponseData: ResponseData<NodeChallenge> = await apiClient
       .node()
-      .requestChallenge(rpcBaseUrl, applicationId);
-    const { publicKey } = await getOrCreateKeypair();
+      .requestChallenge(rpcBaseUrl, "admin-ui");
 
-    if (challengeResponseData.error) {
-      console.error("requestNodeData error", challengeResponseData.error);
-      //TODO handle error
-      return;
-    }
+    const message = challengeResponseData.data.nodeSignature;
 
-    const signatureMessage: SignatureMessage = {
-      nodeSignature: challengeResponseData.data?.nodeSignature ?? "",
-      clientPublicKey: publicKey,
+    setMessage(JSON.stringify(message));
+  };
+  const signMessageOnClick = async () => {
+    signMessage();
+  };
+
+  const confirm = async () => {
+    console.log(signData);
+
+    const rootKeyParams = {
+      accountId: address,
+      signature: signData,
+      publicKey: address,
+      callbackUrl: "http://localhost:3000",
     };
-
-    const signatureMessageMetadata: SignatureMessageMetadata = {
-      nodeSignature: challengeResponseData.data?.nodeSignature ?? "",
-      clientPublicKey: publicKey,
-      nonce:
-        challengeResponseData.data?.nonce ?? randomBytes(32).toString("hex"),
-      applicationId: challengeResponseData.data?.applicationId ?? "",
-      timestamp: challengeResponseData.data?.timestamp ?? new Date().getTime(),
-      message: JSON.stringify(signatureMessage),
-    };
-    const signatureMetadata: EthSignatureMessageMetadata = {};
-    const payload: Payload = {
-      message: signatureMessageMetadata,
-      metadata: signatureMetadata,
-    };
-    const wsd: WalletSignatureData = {
-      payload: payload,
-      clientPubKey: publicKey,
-    };
-    setWalletSignatureData(wsd);
-  }, []);
-
-  const login = useCallback(async () => {
-    setErrorMessage(null);
-    if (!signData) {
-      console.error("signature is empty");
-      //TODO handle error
-    } else if (!address) {
-      console.error("address is empty");
-      //TODO handle error
-    } else {
-      const walletMetadata: WalletMetadata = {
-        type: WalletType.ETH,
-        signingKey: address,
-      };
-      const loginRequest: LoginRequest = {
-        walletSignature: signData,
-        // @ts-ignore: payload is not undefined
-        payload: walletSignatureData?.payload,
-        walletMetadata: walletMetadata,
-      };
-      await apiClient
-        .node()
-        .login(loginRequest, rpcBaseUrl)
-        .then((result) => {
-          if (result.error) {
-            console.error("Login error: ", result.error);
-            setErrorMessage(result.error.message);
-          } else {
-            setStorageNodeAuthorized();
-            successRedirect();
-          }
-        })
-        .catch(() => {
-          console.error("error while login!");
-          setErrorMessage("Error while login!");
-        });
-    }
-  }, [address, signData, walletSignatureData?.payload]);
-
-  useEffect(() => {
-    if (isConnected) {
-      requestNodeData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected]);
-
-  useEffect(() => {
-    if (isSignSuccess && walletSignatureData) {
-      //send request to node
-      console.log("signature", signData);
-      console.log("address", address);
-      login();
-    }
-  }, [address, isSignSuccess, login, signData, walletSignatureData]);
+    console.log("🚀 ~ confirm ~ rootKeyParams:", rootKeyParams);
+    await apiClient
+      .node()
+      .addRootKey(rootKeyParams, rpcBaseUrl)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch(() => {
+        console.error("error while login");
+      });
+  };
 
   if (!ready) {
     return <Loading />;
@@ -193,9 +112,9 @@ export default function LoginWithMetamask({
         >
           <MetaMaskButton
             theme="dark"
-            color={isConnected && walletSignatureData ? "blue" : "white"}
+            color={isConnected ? "blue" : "white"}
             buttonStyle={
-              isConnected && walletSignatureData
+              isConnected
                 ? {
                     display: "flex",
                     justifyContent: "center",
@@ -211,55 +130,82 @@ export default function LoginWithMetamask({
                   }
             }
           ></MetaMaskButton>
-          {isConnected && walletSignatureData && (
-            <div style={{ marginTop: "155px" }}>
-              <button
-                style={{
-                  backgroundColor: "#FF7A00",
-                  color: "white",
-                  width: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  height: "46px",
-                  cursor: "pointer",
-                  fontSize: "1rem",
-                  fontWeight: "500",
-                  borderRadius: "0.375rem",
-                  border: "none",
-                  outline: "none",
-                  paddingLeft: "0.5rem",
-                  paddingRight: "0.5rem",
-                }}
-                disabled={isSignLoading}
-                onClick={() => signMessage()}
-              >
-                Sign authentication transaction
-              </button>
-              {isSignError && (
-                <div
+          {isConnected && (
+            <>
+              <div style={{ marginTop: "155px" }}>
+                <button
                   style={{
-                    color: "red",
-                    fontSize: "14px",
+                    backgroundColor: "#FF7A00",
+                    color: "white",
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    height: "46px",
+                    cursor: "pointer",
+                    fontSize: "1rem",
                     fontWeight: "500",
-                    marginTop: "0.5rem",
+                    borderRadius: "0.375rem",
+                    border: "none",
+                    outline: "none",
+                    paddingLeft: "0.5rem",
+                    paddingRight: "0.5rem",
                   }}
+                  onClick={() => signMessageOnClick()}
                 >
-                  Error signing message
-                </div>
-              )}
-              <div
-                style={{
-                  color: "red",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  marginTop: "0.5rem",
-                }}
-              >
-                {errorMessage}
+                  Sign authentication transaction
+                </button>
               </div>
-            </div>
+              <div style={{ marginTop: "155px" }}>
+                <button
+                  style={{
+                    backgroundColor: "#FF7A00",
+                    color: "white",
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    height: "46px",
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                    fontWeight: "500",
+                    borderRadius: "0.375rem",
+                    border: "none",
+                    outline: "none",
+                    paddingLeft: "0.5rem",
+                    paddingRight: "0.5rem",
+                  }}
+                  onClick={() => requestChallenge()}
+                >
+                  RequestChallenge
+                </button>
+                <button
+                  style={{
+                    backgroundColor: "#FF7A00",
+                    color: "white",
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    height: "46px",
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                    fontWeight: "500",
+                    borderRadius: "0.375rem",
+                    border: "none",
+                    outline: "none",
+                    paddingLeft: "0.5rem",
+                    paddingRight: "0.5rem",
+                  }}
+                  onClick={() => confirm()}
+                >
+                  confirm
+                </button>
+              </div>
+            </>
           )}
         </header>
       </div>

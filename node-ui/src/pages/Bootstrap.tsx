@@ -5,6 +5,8 @@ import { Buffer } from "buffer";
 import axios from "axios";
 import { Login } from "../components/login/Login";
 import { Footer } from "../components/footer/Footer";
+import MetamaskContext from "@calimero-is-near/calimero-p2p-sdk/lib/wallet/MetamaskLogin/MetamaskWrapper";
+
 import styled from "styled-components";
 import { getWalletCallbackUrl } from "../utils/wallet";
 
@@ -26,10 +28,10 @@ const fetchChallenge = async (): Promise<Challenge> => {
 };
 
 const verifyOwner = async (): Promise<void> => {
-  let nonceBase64 = null;
   let challengeObject: null | Challenge = null;
   try {
     challengeObject = await fetchChallenge();
+    console.log("🚀 ~ verifyOwner ~ challengeObject:", challengeObject)
   } catch (e) {
     console.error("Failed to fetch challenge:", e);
     return;
@@ -43,10 +45,10 @@ const verifyOwner = async (): Promise<void> => {
   const callbackUrl = getWalletCallbackUrl();
   const message = challengeObject.nodeSignature;
   const recipient = "me";
-  console.log("Signing message:", {
+  console.log("Signing messagex:", {
     message,
     recipient,
-    nonceBase64,
+    nonceBase64: nonce,
     callbackUrl,
   });
   await wallet.signMessage({ message, nonce, recipient, callbackUrl });
@@ -57,10 +59,16 @@ const BootstrapWrapper = styled.div`
 `;
 
 function Bootstrap(): JSX.Element {
+  console.log("da ti jebem mater");
   return (
     <BootstrapWrapper>
-      <Login verifyOwner={verifyOwner} />
-      <Footer />
+       <MetamaskContext
+        applicationId={"node-ui"}
+        rpcBaseUrl={"http://localhost:2428"}
+        successRedirect={() => console.log("sucess")}
+        navigateBack={() => console.log("nav back")}
+        addRootKey={true}
+      />
     </BootstrapWrapper>
   );
 }
