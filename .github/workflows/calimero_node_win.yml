@@ -8,111 +8,127 @@ on:
     types: [closed]
 
 jobs:
-  release:
-    name: Release - ${{ matrix.platform.os_name }}
+  test:
+    name: ${{ matrix.platform.os_name }} with rust ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
+      fail-fast: false
       matrix:
         platform:
+          # Platforms that don't work:
+          #
+          # - sparc64-unknown-linux-gnu - cannot compile openssl-sys
+          # - x86_64-unknown-illumos - weird error compiling openssl - "bin/sh: 1: granlib: not found"
+
           - os_name: FreeBSD-x86_64
             os: ubuntu-20.04
             target: x86_64-unknown-freebsd
             bin: calimero-node
             name: calimero-node-FreeBSD-x86_64.tar.gz
-            cross: true
-            cargo_command: ./cross
-
+            skip_tests: true
           - os_name: Linux-x86_64
             os: ubuntu-20.04
             target: x86_64-unknown-linux-musl
             bin: calimero-node
             name: calimero-node-Linux-x86_64-musl.tar.gz
-            cross: false
-            cargo_command: cargo
-
+          - os_name: Linux-aarch64
+            os: ubuntu-20.04
+            target: aarch64-unknown-linux-musl
+            bin: calimero-node
+            name: calimero-node-Linux-aarch64-musl.tar.gz
+          - os_name: Linux-arm
+            os: ubuntu-20.04
+            target: arm-unknown-linux-musleabi
+            bin: calimero-node
+            name: calimero-node-Linux-arm-musl.tar.gz
+          - os_name: Linux-i686
+            os: ubuntu-20.04
+            target: i686-unknown-linux-musl
+            bin: calimero-node
+            name: calimero-node-Linux-i686-musl.tar.gz
+            skip_tests: true
+          - os_name: Linux-powerpc
+            os: ubuntu-20.04
+            target: powerpc-unknown-linux-gnu
+            bin: calimero-node
+            name: calimero-node-Linux-powerpc-gnu.tar.gz
+            skip_tests: true
+          - os_name: Linux-powerpc64
+            os: ubuntu-20.04
+            target: powerpc64-unknown-linux-gnu
+            bin: calimero-node
+            name: calimero-node-Linux-powerpc64-gnu.tar.gz
+            skip_tests: true
+          - os_name: Linux-powerpc64le
+            os: ubuntu-20.04
+            target: powerpc64le-unknown-linux-gnu
+            bin: calimero-node
+            name: calimero-node-Linux-powerpc64le.tar.gz
+            skip_tests: true
+          - os_name: Linux-riscv64
+            os: ubuntu-20.04
+            target: riscv64gc-unknown-linux-gnu
+            bin: calimero-node
+            name: calimero-node-Linux-riscv64gc-gnu.tar.gz
+          - os_name: Linux-s390x
+            os: ubuntu-20.04
+            target: s390x-unknown-linux-gnu
+            bin: calimero-node
+            name: calimero-node-Linux-s390x-gnu.tar.gz
+            skip_tests: true
+          - os_name: NetBSD-x86_64
+            os: ubuntu-20.04
+            target: x86_64-unknown-netbsd
+            bin: calimero-node
+            name: calimero-node-NetBSD-x86_64.tar.gz
+            skip_tests: true
           - os_name: Windows-aarch64
             os: windows-latest
             target: aarch64-pc-windows-msvc
             bin: calimero-node.exe
             name: calimero-node-Windows-aarch64.zip
-            cross: false
-            cargo_command: cargo
-
+            skip_tests: true
+          - os_name: Windows-i686
+            os: windows-latest
+            target: i686-pc-windows-msvc
+            bin: calimero-node.exe
+            name: calimero-node-Windows-i686.zip
+            skip_tests: true
           - os_name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bin: calimero-node.exe
             name: calimero-node-Windows-x86_64.zip
-            cross: false
-            cargo_command: cargo
-
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
             bin: calimero-node
             name: calimero-node-Darwin-x86_64.tar.gz
-            cross: false
-            cargo_command: cargo
-
-          - os_name: macOS-x86_64
+          - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
             bin: calimero-node
             name: calimero-node-Darwin-aarch64.tar.gz
-            cross: false
-            cargo_command: cargo
-
-    runs-on: ${{ matrix.platform.os }}
+            skip_tests: true
+        toolchain:
+          - stable
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install toolchain if not cross-compiling
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - name: Cache cargo & target directories
+        uses: Swatinem/rust-cache@v2
         with:
-          targets: ${{ matrix.platform.target }}
-        if: ${{ !matrix.platform.cross }}
-
+          key: "v2"
       - name: Install musl-tools on Linux
         run: sudo apt-get update --yes && sudo apt-get install --yes musl-tools
-        if: contains(matrix.platform.os, 'ubuntu') && !matrix.platform.cross
-
-      - name: Install cross if cross-compiling (*nix)
-        id: cross-nix
-        shell: bash
-        run: |
-          set -e
-          export TARGET="$HOME/bin"
-          mkdir -p "$TARGET"
-          ./bootstrap/bootstrap-ubi.sh
-          "$HOME/bin/ubi" --project cross-rs/cross --matching musl --in .
-        if: matrix.platform.cross && !contains(matrix.platform.os, 'windows')
-
-      - name: Install cross if cross-compiling (Windows)
-        id: cross-windows
-        shell: powershell
-        run: |
-          .\bootstrap\bootstrap-ubi.ps1
-          .\ubi --project cross-rs/cross --in .
-        if: matrix.platform.cross && contains(matrix.platform.os, 'windows')
-
-      - name: Build binary (*nix)
-        shell: bash
-        run: |
-          ${{ matrix.platform.cargo_command }} build -p calimero-node --locked --release --target ${{ matrix.platform.target }}
-        if: ${{ !contains(matrix.platform.os, 'windows') }}
-
-      - name: Build binary (Windows)
-        shell: powershell
-        run: |
-          & ${{ matrix.platform.cargo_command }} build -p calimero-node --locked --release --target ${{ matrix.platform.target }}
-        if: contains(matrix.platform.os, 'windows')
-
-      - name: Strip binary
-        shell: bash
-        run: |
-          strip target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-        if: ${{ !(matrix.platform.cross || matrix.platform.target == 'aarch64-pc-windows-msvc') }}
-
+        if: contains(matrix.platform.name, 'musl')
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: "build"
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.toolchain }}
+          args: "-p calimero-node --locked --release"
+          strip: true
       - name: Package as archive
         shell: bash
         run: |
@@ -123,9 +139,8 @@ jobs:
             tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
           fi
           cd -
-
       - name: Publish release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: calimero-node-${{ matrix.platform.os_name }}
-          path: "calimero-node*"
+          path: "calimero-node-*"
