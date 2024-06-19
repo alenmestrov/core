@@ -8,162 +8,124 @@ on:
     types: [closed]
 
 jobs:
-  build:
-    runs-on: windows-latest
+  release:
+    name: Release - ${{ matrix.platform.os_name }}
     strategy:
       matrix:
-        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+        platform:
+          - os_name: FreeBSD-x86_64
+            os: ubuntu-20.04
+            target: x86_64-unknown-freebsd
+            bin: calimero-node
+            name: calimero-node-FreeBSD-x86_64.tar.gz
+            cross: true
+            cargo_command: ./cross
 
-    outputs:
-      artifact_path: ${{ steps.compress.outputs.artifact_path }}
-      target: ${{ matrix.target }}
-      version: ${{ steps.extract_version.outputs.version }}
+          - os_name: Linux-x86_64
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+            bin: calimero-node
+            name: calimero-node-Linux-x86_64-musl.tar.gz
+            cross: false
+            cargo_command: cargo
 
+          - os_name: Windows-aarch64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            bin: calimero-node.exe
+            name: calimero-node-Windows-aarch64.zip
+            cross: false
+            cargo_command: cargo
+
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: calimero-node.exe
+            name: calimero-node-Windows-x86_64.zip
+            cross: false
+            cargo_command: cargo
+
+          - os_name: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: calimero-node
+            name: calimero-node-Darwin-x86_64.tar.gz
+            cross: false
+            cargo_command: cargo
+
+          - os_name: macOS-x86_64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+            bin: calimero-node
+            name: calimero-node-Darwin-aarch64.tar.gz
+            cross: false
+            cargo_command: cargo
+
+    runs-on: ${{ matrix.platform.os }}
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup rust toolchain
-        run: rustup toolchain install stable --profile minimal
-
-      - name: Setup rust cache
-        uses: Swatinem/rust-cache@v2
+      - name: Install toolchain if not cross-compiling
+        uses: dtolnay/rust-toolchain@stable
         with:
-          key: ${{ runner.os }}-calimero-node-${{ matrix.target }}
+          targets: ${{ matrix.platform.target }}
+        if: ${{ !matrix.platform.cross }}
 
-      - name: Install target for ${{ matrix.target }}
-        run: rustup target add ${{ matrix.target }}
+      - name: Install musl-tools on Linux
+        run: sudo apt-get update --yes && sudo apt-get install --yes musl-tools
+        if: contains(matrix.platform.os, 'ubuntu') && !matrix.platform.cross
 
-      - name: Install dependencies for cross-compilation
+      - name: Install cross if cross-compiling (*nix)
+        id: cross-nix
+        shell: bash
         run: |
-          choco install openssl
+          set -e
+          export TARGET="$HOME/bin"
+          mkdir -p "$TARGET"
+          ./bootstrap/bootstrap-ubi.sh
+          "$HOME/bin/ubi" --project cross-rs/cross --matching musl --in .
+        if: matrix.platform.cross && !contains(matrix.platform.os, 'windows')
 
-      - name: Build the crate
-        run: cargo build -p calimero-node --release --target ${{ matrix.target }}
-
-      - name: Extract version
-        id: extract_version
+      - name: Install cross if cross-compiling (Windows)
+        id: cross-windows
+        shell: powershell
         run: |
-          VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "calimero-node") | .version')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          .\bootstrap\bootstrap-ubi.ps1
+          .\ubi --project cross-rs/cross --in .
+        if: matrix.platform.cross && contains(matrix.platform.os, 'windows')
 
-      - name: Compress artifact using zip
-        id: compress
+      - name: Build binary (*nix)
+        shell: bash
         run: |
-          powershell -c "Compress-Archive -Path target\${{ matrix.target }}\release\calimero-node.exe -DestinationPath calimero-node_${{ matrix.target }}.zip"
-          echo "artifact_path=calimero-node_${{ matrix.target }}.zip" >> $GITHUB_OUTPUT
-          echo "target=${{ matrix.target }}" >> $GITHUB_OUTPUT
+          ${{ matrix.platform.cargo_command }} build -p calimero-node --locked --release --target ${{ matrix.platform.target }}
+        if: ${{ !contains(matrix.platform.os, 'windows') }}
 
-      - name: Cache build artifact
-        uses: actions/cache@v4
-        with:
-          path: calimero-node_${{ matrix.target }}.zip
-          key: build-artifact-${{ matrix.target }}-${{ github.sha }}
-          restore-keys: |
-            build-artifact-${{ matrix.target }}
-
-  upload_branch_artifact:
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      matrix:
-        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
-    if: ${{ github.ref != 'refs/heads/master' }}
-
-    steps:
-      - name: Restore build artifact
-        uses: actions/cache@v4
-        with:
-          path: calimero-node_${{ matrix.target }}.zip
-          key: build-artifact-${{ matrix.target }}-${{ github.sha }}
-          restore-keys: |
-            build-artifact-${{ matrix.target }}
-
-      - name: Sanitize ref name
-        id: sanitize
+      - name: Build binary (Windows)
+        shell: powershell
         run: |
-          sanitized_ref_name=$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9_-]/-/g; s/^-*//; s/-*$//')
-          echo "sanitized_ref_name=${sanitized_ref_name}" >> $GITHUB_OUTPUT
+          & ${{ matrix.platform.cargo_command }} build -p calimero-node --locked --release --target ${{ matrix.platform.target }}
+        if: contains(matrix.platform.os, 'windows')
 
-      - name: Upload binary as artifact
+      - name: Strip binary
+        shell: bash
+        run: |
+          strip target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        if: ${{ !(matrix.platform.cross || matrix.platform.target == 'aarch64-pc-windows-msvc') }}
+
+      - name: Package as archive
+        shell: bash
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          if [[ "${{ matrix.platform.os }}" == "windows-latest" ]]; then
+            7z a ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
+          else
+            tar czvf ../../../${{ matrix.platform.name }} ${{ matrix.platform.bin }}
+          fi
+          cd -
+
+      - name: Publish release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: calimero-node_${{ steps.sanitize.outputs.sanitized_ref_name }}_${{ matrix.target }}.zip
-          path: calimero-node_${{ matrix.target }}.zip
-          retention-days: 2
-
-  create_release:
-    runs-on: ubuntu-latest
-    needs: build
-    outputs:
-      release_exists: ${{ steps.check_release.outputs.release_exists }}
-      version: ${{ needs.build.outputs.version }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check if release exists
-        id: check_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=${{ needs.build.outputs.version }}
-          if gh release view "v$VERSION" >/dev/null 2>&1; then
-            echo "release_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "release_exists=false" >> $GITHUB_OUTPUT
-
-      - name: Create release if it does not exist
-        if: steps.check_release.outputs.release_exists == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=${{ needs.build.outputs.version }}
-          gh release create "v$VERSION" --title "Release v$VERSION" --notes "Release for version $VERSION"
-
-  upload_release_artifact:
-    runs-on: ubuntu-latest
-    needs: [build, create_release]
-    strategy:
-      matrix:
-        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
-    if: ${{ github.ref == 'refs/heads/master' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'master') }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Restore build artifact
-        uses: actions/cache@v4
-        with:
-          path: calimero-node_${{ matrix.target }}.zip
-          key: build-artifact-${{ matrix.target }}-${{ github.sha }}
-          restore-keys: |
-            build-artifact-${{ matrix.target }}
-
-      - name: Check if artifact exists in release
-        id: check_artifact
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=${{ needs.build.outputs.version }}
-          TARGET=${{ matrix.target }}
-          ARTIFACT_NAME="calimero-node_${TARGET}.zip"
-          ASSET_ID=$(gh api \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            /repos/${{ github.repository }}/releases/tags/v$VERSION \
-            | jq -r ".assets[] | select(.name == \"$ARTIFACT_NAME\") | .id")
-          if [[ -n "$ASSET_ID" ]]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload artifact to release
-        if: steps.check_artifact.outputs.exists == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION=${{ needs.build.outputs.version }}
-          TARGET=${{ matrix.target }}
-          gh release upload "v$VERSION" calimero-node_${TARGET}.zip
+          name: calimero-node-${{ matrix.platform.os_name }}
+          path: "calimero-node*"
