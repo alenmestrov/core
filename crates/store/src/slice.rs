@@ -204,15 +204,20 @@ impl<'a, T: ThreadMode<Inner<'a>: Clone>> Clone for Slice<'a, T> {
     }
 }
 
-impl<'a> Slice<'a, MultiThreaded> {
+impl<'a> MultiThreadedSlice<'a> {
     pub fn from_owned<T: AsRef<[u8]> + Send + Sync + 'a>(inner: T) -> Self {
         Self {
             inner: SliceInner::Ref(AtomicSlice::Any(Arc::new(inner) as _)),
         }
     }
+
+    // todo! think about this
+    // pub fn downgraded(&self) -> SingleThreadedSlice<'a> {
+    //     SingleThreadedSlice { ... }
+    // }
 }
 
-impl<'a> Slice<'a, SingleThreaded> {
+impl<'a> SingleThreadedSlice<'a> {
     pub fn from_owned<T: AsRef<[u8]> + 'a>(inner: T) -> Self {
         Self {
             inner: SliceInner::Ref(RefCountedSlice::Any(Rc::new(inner) as _)),
