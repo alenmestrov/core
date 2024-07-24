@@ -6,6 +6,28 @@ use std::sync::Arc;
 
 use calimero_primitives::reflect::{DynReflect, Reflect, ReflectExt};
 
+trait BufRef: Reflect {
+    fn buf(&self) -> &[u8];
+}
+
+impl<'a, T: AsRef<[u8]> + 'a> BufRef for T {
+    fn buf(&self) -> &[u8] {
+        self.as_ref()
+    }
+}
+
+impl<'a> fmt::Debug for dyn BufRef + Send + Sync + 'a {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.type_name())
+    }
+}
+
+impl<'a> fmt::Debug for dyn BufRef + 'a {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.type_name())
+    }
+}
+
 trait SliceBehavior<'a>: AsRef<[u8]> + Sized {
     type RefCountedObject<T: 'a>;
 
@@ -179,28 +201,6 @@ impl<'a, T: ThreadMode<Inner<'a>: Clone>> Clone for Slice<'a, T> {
         Self {
             inner: self.inner.clone(),
         }
-    }
-}
-
-trait BufRef: Reflect {
-    fn buf(&self) -> &[u8];
-}
-
-impl<'a, T: AsRef<[u8]> + 'a> BufRef for T {
-    fn buf(&self) -> &[u8] {
-        self.as_ref()
-    }
-}
-
-impl<'a> fmt::Debug for dyn BufRef + Send + Sync + 'a {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.type_name())
-    }
-}
-
-impl<'a> fmt::Debug for dyn BufRef + 'a {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.type_name())
     }
 }
 
