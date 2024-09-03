@@ -742,6 +742,56 @@ async fn handle_line(node: &mut Node, line: String) -> EyreResult<()> {
             };
             println!("{IND} Usage: context [ls|join|leave|create|delete|state] [args]");
         }
+        "admin-dashboard" => {
+            // Check if the port argument is provided
+            if let Some(port_str) = args {
+                // Attempt to parse the port argument to a u16
+                let port: u16 = match port_str.parse() {
+                    Ok(port) => port,
+                    Err(_) => {
+                        println!("{IND} Invalid port number provided.");
+                        return Err(eyre!("Invalid port number"));
+                    }
+                };
+
+                // Define the base URL and path
+                let base_url = "http://localhost";
+                let path = "/admin-dashboard";
+
+                // Dynamically generate the full URL
+                let url = format!("{}:{}{}", base_url, port, path);
+
+                // Construct the command to open the URL in the default browser
+                let open_browser_command = if cfg!(target_os = "macos") {
+                    format!("open {}", url)
+                } else if cfg!(target_os = "linux") {
+                    format!("xdg-open {}", url)
+                } else if cfg!(target_os = "windows") {
+                    format!("start {}", url)
+                } else {
+                    return Err(eyre!("Unsupported operating system"));
+                };
+
+                // Execute the command to open the browser
+                match std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(open_browser_command)
+                    .status()
+                {
+                    Ok(status) if status.success() => {
+                        println!("{IND} Opened URL in browser: {url}");
+                    }
+                    Ok(status) => {
+                        println!("{IND} Failed to open URL. Exit code: {}", status);
+                    }
+                    Err(e) => {
+                        println!("{IND} Failed to execute command: {e}");
+                    }
+                }
+            } else {
+                println!("{IND} Usage: admin-dashboard <PORT>");
+            }
+        }
         unknown => {
             println!("{IND} Unknown command: `{unknown}`");
             println!("{IND} Usage: [call|peers|pool|gc|store|context|application] [args]");
