@@ -14,8 +14,11 @@ use calimero_primitives::identity::{KeyPair, PublicKey};
 use calimero_store::key::{
     ApplicationMeta as ApplicationMetaKey, BlobMeta as BlobMetaKey,
     ContextIdentity as ContextIdentityKey, ContextMeta as ContextMetaKey,
+    ContextState as ContextStateKey, ContextTransaction as ContextTransactionKey,
 };
-use calimero_store::types::{ApplicationMeta, ContextMeta};
+use calimero_store::types::{
+    ApplicationMeta as ApplicationMetaValue, ContextMeta as ContextMetaValue,
+};
 use calimero_store::Store;
 use camino::Utf8PathBuf;
 use eyre::{bail, Result as EyreResult};
@@ -149,7 +152,7 @@ impl ContextManager {
 
         handle.put(
             &ContextMetaKey::new(context.id),
-            &ContextMeta::new(
+            &ContextMetaValue::new(
                 ApplicationMetaKey::new(context.application_id),
                 context.last_transaction_hash.into(),
             ),
@@ -225,6 +228,84 @@ impl ContextManager {
         }
 
         handle.delete(&key)?;
+
+        {
+            let mut keys = vec![];
+
+            let mut iter = handle.iter::<ContextIdentityKey>()?;
+
+            let first = iter
+                .seek(ContextIdentityKey::new(*context_id, [0; 32].into()))
+                .transpose();
+
+            for k in first.into_iter().chain(iter.keys()) {
+                let k = k?;
+
+                if k.context_id() != *context_id {
+                    break;
+                }
+
+                keys.push(k);
+            }
+
+            drop(iter);
+
+            for k in keys {
+                handle.delete(&k)?;
+            }
+        }
+
+        {
+            let mut keys = vec![];
+
+            let mut iter = handle.iter::<ContextStateKey>()?;
+
+            let first = iter
+                .seek(ContextStateKey::new(*context_id, [0; 32].into()))
+                .transpose();
+
+            for k in first.into_iter().chain(iter.keys()) {
+                let k = k?;
+
+                if k.context_id() != *context_id {
+                    break;
+                }
+
+                keys.push(k);
+            }
+
+            drop(iter);
+
+            for k in keys {
+                handle.delete(&k)?;
+            }
+        }
+
+        {
+            let mut keys = vec![];
+
+            let mut iter = handle.iter::<ContextTransactionKey>()?;
+
+            let first = iter
+                .seek(ContextTransactionKey::new(*context_id, [0; 32].into()))
+                .transpose();
+
+            for k in first.into_iter().chain(iter.keys()) {
+                let k = k?;
+
+                if k.context_id() != *context_id {
+                    break;
+                }
+
+                keys.push(k);
+            }
+
+            drop(iter);
+
+            for k in keys {
+                handle.delete(&k)?;
+            }
+        }
 
         self.unsubscribe(context_id).await?;
 
@@ -313,7 +394,7 @@ impl ContextManager {
         if let Some(start) = start {
             // todo! Iter shouldn't behave like DBIter, first next should return sought element
             if let Some(key) = iter.seek(ContextMetaKey::new(start))? {
-                let value: ContextMeta = iter.read()?;
+                let value = iter.read()?;
 
                 contexts.push(Context::new(
                     key.context_id(),
@@ -364,7 +445,7 @@ impl ContextManager {
         version: Option<Version>,
         metadata: Vec<u8>,
     ) -> EyreResult<ApplicationId> {
-        let application = ApplicationMeta::new(
+        let application = ApplicationMetaValue::new(
             BlobMetaKey::new(blob_id),
             version.map(|v| v.to_string().into_boxed_str()),
             source.to_string().into_boxed_str(),
