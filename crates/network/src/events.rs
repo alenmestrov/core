@@ -32,6 +32,7 @@ impl EventLoop {
                 BehaviourEvent::Gossipsub(event) => EventHandler::handle(self, event).await,
                 BehaviourEvent::Identify(event) => EventHandler::handle(self, event).await,
                 BehaviourEvent::Kad(event) => EventHandler::handle(self, event).await,
+                #[cfg(not(target_os = "android"))]
                 BehaviourEvent::Mdns(event) => EventHandler::handle(self, event).await,
                 BehaviourEvent::Ping(event) => EventHandler::handle(self, event).await,
                 BehaviourEvent::Relay(event) => EventHandler::handle(self, event).await,

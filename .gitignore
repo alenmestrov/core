@@ -13,3 +13,6 @@ coverage/
 dist/
 lib/
 node_modules/
+
+openssl-1.1.1u
+android-ndk-r23b

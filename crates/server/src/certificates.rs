@@ -3,13 +3,14 @@ use core::str::from_utf8;
 
 use calimero_store::Store;
 use eyre::Result as EyreResult;
+#[cfg(not(target_os = "android"))]
 use local_ip_address::local_ip;
 use rcgen::{CertificateParams, DnType, KeyPair};
 use x509_parser::extensions::GeneralName;
 use x509_parser::prelude::{parse_x509_pem, ParsedExtension};
 
 use crate::admin::storage::ssl::{get_ssl, insert_or_update_ssl, SSLCert};
-
+#[cfg(not(target_os = "android"))]
 pub fn get_certificate(store: &Store) -> EyreResult<(Vec<u8>, Vec<u8>)> {
     let certificate = match get_ssl(store)? {
         Some(cert) => check_certificate(store, &cert)?,
@@ -18,7 +19,7 @@ pub fn get_certificate(store: &Store) -> EyreResult<(Vec<u8>, Vec<u8>)> {
     write_out_instructions();
     Ok(certificate)
 }
-
+#[cfg(not(target_os = "android"))]
 fn generate_certificate(store: &Store) -> EyreResult<(Vec<u8>, Vec<u8>)> {
     // Get the local IP address
     let local_ip = local_ip()?;
@@ -62,6 +63,7 @@ fn generate_certificate(store: &Store) -> EyreResult<(Vec<u8>, Vec<u8>)> {
     Ok((cert_pem, key_pem))
 }
 
+#[cfg(not(target_os = "android"))]
 fn check_certificate(store: &Store, cert: &SSLCert) -> EyreResult<(Vec<u8>, Vec<u8>)> {
     let (cert_pem, key_pem) = (cert.cert(), cert.key());
     let (_, pem) = parse_x509_pem(cert_pem)?;

@@ -124,6 +124,7 @@ impl InitCommand {
                 host,
             );
             listen.push(format!("{}/tcp/{}", host, self.swarm_port).parse()?);
+            #[cfg(not(target_os = "android"))]
             listen.push(format!("{}/udp/{}/quic-v1", host, self.swarm_port).parse()?);
         }
 

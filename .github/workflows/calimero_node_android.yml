@@ -1,0 +1,46 @@
+name: Local Build for Calimero Node Android
+
+on:
+  workflow_dispatch: # Triggered manually for local use
+
+jobs:
+  build_android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: calimero-network/core
+          ref: master
+
+      - name: Set up Rust toolchain locally
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Add Android target for Rust
+        run: rustup target add aarch64-linux-android
+
+      - name: Install Android NDK locally
+        run: |
+          sudo apt-get install -y unzip
+          wget https://dl.google.com/android/repository/android-ndk-r23b-linux.zip
+          unzip android-ndk-r23b-linux.zip
+          export ANDROID_NDK=$PWD/android-ndk-r23b
+          export PATH=$PWD/android-ndk-r23b/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+
+    #   - name: Build Calimero Node for Android
+    #     env:
+    #       CC: aarch64-linux-android21-clang
+    #       CXX: aarch64-linux-android21-clang++
+    #       AR: aarch64-linux-android-ar
+    #     run: cargo build --release --target aarch64-linux-android
+
+    #   - name: Archive Build Artifact
+    #     run: |
+    #       mkdir -p build_output
+    #       cp target/aarch64-linux-android/release/calimero_node build_output/
+    #       tar -czf calimero_node_android.tar.gz -C build_output calimero_node
+
+    #   - name: Print build result location
+    #     run: |
+    #       echo "Build artifact created: calimero_node_android.tar.gz"

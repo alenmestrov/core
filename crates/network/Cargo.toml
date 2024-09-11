@@ -10,23 +10,6 @@ license.workspace = true
 bytes.workspace = true
 eyre.workspace = true
 futures-util.workspace = true
-libp2p = { workspace = true, features = [
-    "dcutr",
-    "gossipsub",
-    "identify",
-    "kad",
-    "macros",
-    "mdns",
-    "noise",
-    "ping",
-    "quic",
-    "rendezvous",
-    "relay",
-    "tokio",
-    "tcp",
-    "tls",
-    "yamux",
-] }
 libp2p-stream.workspace = true
 multiaddr.workspace = true
 owo-colors.workspace = true
@@ -45,3 +28,39 @@ tokio-test.workspace = true
 
 [lints]
 workspace = true
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+libp2p = { workspace = true, features = [
+    "dcutr",
+    "gossipsub",
+    "identify",
+    "kad",
+    "macros",
+    "mdns",
+    "noise",
+    "ping",
+    "quic",
+    "rendezvous",
+    "relay",
+    "tokio",
+    "tcp",
+    "tls",
+    "yamux",
+] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+libp2p = { workspace = true, features = [
+    "dcutr",
+    "gossipsub",
+    "identify",
+    "kad",
+    "macros",
+    "noise",
+    "ping",
+    "rendezvous",
+    "relay",
+    "tokio",
+    "tcp",
+    "tls",
+    "yamux",
+] }

@@ -4,6 +4,7 @@ use reqwest::Client;
 use tracing::info;
 
 use crate::cli::RootArgs;
+use crate::common::RequestType::POST;
 use crate::common::{get_response, multiaddr_to_url};
 use crate::config_file::ConfigFile;
 
@@ -31,7 +32,7 @@ impl JoinCommand {
             &format!("admin-api/dev/contexts/{}/join", self.context_id),
         )?;
         let client = Client::new();
-        let response = get_response(&client, url, Some(()), &config.identity).await?;
+        let response = get_response(&client, url, Some(()), &config.identity, POST).await?;
 
         if !response.status().is_success() {
             bail!("Request failed with status: {}", response.status())

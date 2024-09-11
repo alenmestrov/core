@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "android"))]
 use libp2p::mdns::Event;
 use owo_colors::OwoColorize;
 use tracing::{debug, error};
@@ -5,6 +6,7 @@ use tracing::{debug, error};
 use super::{EventHandler, EventLoop, RelayedMultiaddr};
 use crate::discovery::state::PeerDiscoveryMechanism;
 
+#[cfg(not(target_os = "android"))]
 impl EventHandler<Event> for EventLoop {
     async fn handle(&mut self, event: Event) {
         debug!("{}: {:?}", "mdns".yellow(), event);

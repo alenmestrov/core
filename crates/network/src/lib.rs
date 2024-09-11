@@ -13,7 +13,9 @@ use libp2p::gossipsub::{
 use libp2p::identify::{Behaviour as IdentifyBehaviour, Config as IdentifyConfig};
 use libp2p::kad::store::MemoryStore;
 use libp2p::kad::{Behaviour as KadBehaviour, Config as KadConfig, Mode, QueryId};
+#[cfg(not(target_os = "android"))]
 use libp2p::mdns::tokio::Behaviour as MdnsTokioBehaviour;
+#[cfg(not(target_os = "android"))]
 use libp2p::mdns::{Behaviour as MdnsBehaviour, Config as MdnsConfig};
 use libp2p::noise::Config as NoiseConfig;
 use libp2p::ping::Behaviour as PingBehaviour;
@@ -52,6 +54,7 @@ struct Behaviour {
     gossipsub: GossipsubBehaviour,
     identify: IdentifyBehaviour,
     kad: KadBehaviour<MemoryStore>,
+    #[cfg(not(target_os = "android"))]
     mdns: Toggle<MdnsTokioBehaviour>,
     ping: PingBehaviour,
     rendezvous: RendezvousBehaviour,
@@ -102,7 +105,7 @@ fn init(
             (TlsConfig::new, NoiseConfig::new),
             YamuxConfig::default,
         )?
-        .with_quic()
+        // .with_quic()
         .with_relay_client(NoiseConfig::new, YamuxConfig::default)?
         .with_behaviour(|key, relay_behaviour| Behaviour {
             dcutr: DcutrBehaviour::new(peer_id),
@@ -110,12 +113,18 @@ fn init(
                 IdentifyConfig::new(PROTOCOL_VERSION.to_owned(), key.public())
                     .with_push_listen_addr_updates(true),
             ),
-            mdns: config
-                .discovery
-                .mdns
-                .then_some(())
-                .and_then(|()| MdnsBehaviour::new(MdnsConfig::default(), peer_id).ok())
-                .into(),
+            #[cfg(not(target_os = "android"))]
+            mdns:
+            // if cfg(not(target_os = "android")) {
+            //     config
+            //         .discovery
+            //         .mdns
+            //         .then_some(())
+            //         .and_then(|()| MdnsBehaviour::new(MdnsConfig::default(), peer_id).ok())
+            //         .into()
+            // } else {
+                None.into(), // Provide a default value for Android
+            // },
             kad: {
                 let mut kad_config = KadConfig::default();
                 let _ = kad_config.set_protocol_names(vec![CALIMERO_KAD_PROTO_NAME]);
