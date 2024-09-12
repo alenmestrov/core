@@ -8,7 +8,7 @@ import { ClientKey } from './types';
 export async function generatePrivateKey(): Promise<PrivateKey> {
   return await generateKeyPair(Ed25519);
 }
-    
+
 export async function getOrCreateKeypair(): Promise<ClientKey> {
   return getStorageClientKey() ?? createAndStoreClientKey();
 }
