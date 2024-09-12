@@ -25,6 +25,7 @@ jobs:
           else
             echo "Changes found in node-ui."
             echo "no_changes=false" >> $GITHUB_ENV
+          fi
 
       # Stop the workflow if no changes were found
       - name: Stop if no changes
