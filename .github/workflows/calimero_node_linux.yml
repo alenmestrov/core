@@ -36,9 +36,6 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: List available pnpm scripts
-        run: pnpm run --prefix ./node-ui
-
       # Install and build frontend
       - name: Install node-ui dependencies with pnpm
         run: pnpm install --prefix ./node-ui
