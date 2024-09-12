@@ -25,7 +25,7 @@ import InstallApplication from './pages/InstallApplication';
 import StarknetLogin from './pages/Starknet';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
-
+//Added some comment for testing
 export default function App() {
   const { showServerDownPopup } = useServerDown();
 
