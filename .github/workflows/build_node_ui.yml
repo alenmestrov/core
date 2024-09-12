@@ -19,12 +19,12 @@ jobs:
       - name: Check for changes in node-ui
         id: check_changes
         run: |
-          if git diff --quiet ./node-ui; then
+          if git diff --quiet HEAD ./node-ui; then
             echo "No changes in node-ui."
-            echo "no_changes=true" >> $GITHUB_OUTPUT
+            echo "no_changes=true" >> $GITHUB_ENV
           else
             echo "Changes found in node-ui."
-            echo "no_changes=false" >> $GITHUB_OUTPUT
+            echo "no_changes=false" >> $GITHUB_ENV
 
       # Stop the workflow if no changes were found
       - name: Stop if no changes
