@@ -14,6 +14,7 @@ export async function getOrCreateKeypair(): Promise<ClientKey> {
 }
 
 async function createAndStoreClientKey() {
+  console.log('Creating new client keypair');
   const privateKey = await generatePrivateKey();
   const clientKey: ClientKey = {
     privateKey: bs58.encode(privateKey.bytes),
