@@ -64,6 +64,10 @@ pub struct AdminState {
     pub ctx_manager: ContextManager,
 }
 
+// TEST
+println!("Hello, world!");
+
+
 pub(crate) fn setup(
     config: &ServerConfig,
     store: Store,
