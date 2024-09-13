@@ -38,12 +38,11 @@ jobs:
       - name: Install target for ${{ matrix.target }}
         run: rustup target add ${{ matrix.target }}
 
-      - name: Install dependencies for cross-compilation
+      - name: Install Zig for cross-compilation
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            libssl-dev pkg-config
+          sudo apt-get install -y zig
+
 
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'

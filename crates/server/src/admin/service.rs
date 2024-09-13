@@ -64,7 +64,6 @@ pub struct AdminState {
     pub ctx_manager: ContextManager,
 }
 
-
 pub(crate) fn setup(
     config: &ServerConfig,
     store: Store,
