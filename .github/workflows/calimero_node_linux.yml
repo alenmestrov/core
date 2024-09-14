@@ -27,22 +27,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Install Node.js (version 20) and pnpm
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      # Install and build frontend
-      - name: Install node-ui dependencies with pnpm
-        run: pnpm install --prefix ./node-ui
-
-      - name: Build node-ui
-        run: pnpm --filter ./node-ui run build
-
       - name: Setup rust toolchain
         run: rustup toolchain install stable --profile minimal
 
@@ -54,17 +38,12 @@ jobs:
       - name: Install target for ${{ matrix.target }}
         run: rustup target add ${{ matrix.target }}
 
-      - name: Install Zig for cross-compilation
+      - name: Install Zig
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zig
-
-      - name: Install dependencies for cross-compilation
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            libssl-dev pkg-config
+          wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
+          tar -xf zig-linux-x86_64-0.11.0.tar.xz
+          sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/
+          zig version
 
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -88,7 +67,12 @@ jobs:
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
-        run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
+          AR: aarch64-linux-gnu-ar
+          RANLIB: aarch64-linux-gnu-ranlib
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build -p meroctl --release --target ${{ matrix.target }}
 
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
