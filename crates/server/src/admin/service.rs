@@ -64,6 +64,7 @@ pub struct AdminState {
     pub ctx_manager: ContextManager,
 }
 
+// Embed the admin-ui build directory into the binary
 static REACT_STATIC_FILES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../node-ui/build");
 
 pub(crate) fn setup(
