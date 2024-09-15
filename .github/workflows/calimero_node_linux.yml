@@ -47,16 +47,10 @@ jobs:
 
       - name: Install Zig
         run: |
-          if [[ ${{ matrix.target }} == 'aarch64-unknown-linux-gnu' ]]; then
-            wget https://ziglang.org/download/0.11.0/zig-linux-aarch64-0.11.0.tar.xz
-            tar -xf zig-linux-aarch64-0.11.0.tar.xz
-            sudo mv zig-linux-aarch64-0.11.0/zig /usr/local/bin/
-          else
-            wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
-            tar -xf zig-linux-x86_64-0.11.0.tar.xz
-            sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/
-          fi
-          zig version      
+          wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
+          tar -xf zig-linux-x86_64-0.11.0.tar.xz
+          sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/
+          zig version          
 
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
