@@ -1148,6 +1148,7 @@ dependencies = [
  "eyre",
  "futures-util",
  "hex",
+ "include_dir",
  "jsonwebtoken",
  "libp2p",
  "local-ip-address",
