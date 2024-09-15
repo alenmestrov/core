@@ -55,7 +55,7 @@ impl AdminConfig {
         Self { enabled }
     }
 }
-//some comment
+//some
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct AdminState {
