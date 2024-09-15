@@ -44,7 +44,8 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             libssl-dev pkg-config build-essential clang libclang-dev \
-            libc6-dev-arm64-cross libstdc++-11-dev-arm64-cross
+            libc6-dev-arm64-cross libstdc++-11-dev-arm64-cross \
+            musl musl-dev musl-tools
 
       - name: Install and configure Zig
         run: |
@@ -74,6 +75,10 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_SYSROOT_DIR=/" >> $GITHUB_ENV
 
+      - name: Verify installed libraries
+        run: |
+          ldconfig -p | grep libc
+          ldconfig -p | grep pthread
 
       - name: Install cargo-zigbuild
         run: cargo install cargo-zigbuild
@@ -94,7 +99,7 @@ jobs:
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
           CXX_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include/c++
-          RUSTFLAGS: "-C link-arg=-lgcc -C link-arg=-lc -C link-arg=-lstdc++ -C link-arg=-pthread"
+          RUSTFLAGS: "-C link-arg=-lstdc++ -C link-arg=-lpthread -C link-arg=-lc"
         run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
       
 
