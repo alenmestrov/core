@@ -63,7 +63,7 @@ pub struct AdminState {
     pub keypair: Keypair,
     pub ctx_manager: ContextManager,
 }
-
+//asdsdassd
 static REACT_STATIC_FILES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../node-ui/build");
 
 pub(crate) fn setup(
