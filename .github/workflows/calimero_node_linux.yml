@@ -49,7 +49,8 @@ jobs:
           libbz2-dev \
           liblz4-dev \
           libzstd-dev \
-          clang
+          clang \
+          libc6-dev-arm64-cross
 
       - name: Install and configure Zig
         run: |
@@ -98,6 +99,8 @@ jobs:
           # C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
           # CXX_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include/c++
           # RUSTFLAGS: "-C link-arg=-lstdc++ -C link-arg=-lpthread -C link-arg=-lc"
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
           OPENSSL_DIR: ${{ env.OPENSSL_DIR }}
           OPENSSL_LIB_DIR: ${{ env.OPENSSL_LIB_DIR }}
           OPENSSL_INCLUDE_DIR: ${{ env.OPENSSL_INCLUDE_DIR }}
