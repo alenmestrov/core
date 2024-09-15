@@ -38,11 +38,24 @@ jobs:
       - name: Install target for ${{ matrix.target }}
         run: rustup target add ${{ matrix.target }}
 
-      - name: Install Zig
+      - name: Install dependencies for cross-compilation
         run: |
-          wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
-          tar -xf zig-linux-x86_64-0.11.0.tar.xz
-          sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libssl-dev pkg-config
+
+      - name: Install Zig for the appropriate architecture
+        run: |
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            wget https://ziglang.org/download/0.11.0/zig-linux-aarch64-0.11.0.tar.xz
+            tar -xf zig-linux-aarch64-0.11.0.tar.xz
+            sudo mv zig-linux-aarch64-0.11.0/zig /usr/local/bin/
+          else
+            wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
+            tar -xf zig-linux-x86_64-0.11.0.tar.xz
+            sudo mv zig-linux-x86_64-0.11.0/zig /usr/local/bin/
+          fi
           zig version
 
       - name: Download and set up OpenSSL for cross-compilation
@@ -67,16 +80,11 @@ jobs:
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
-          AR: aarch64-linux-gnu-ar
-          RANLIB: aarch64-linux-gnu-ranlib
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
 
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
+        run: cargo build -p meroctl --release --target ${{ matrix.target }}
 
       - name: Extract version
         id: extract_version
