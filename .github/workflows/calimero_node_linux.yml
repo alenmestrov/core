@@ -100,9 +100,9 @@ jobs:
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
           CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=1
-        run: |
-          cargo zigbuild -p meroctl --release --target ${{ matrix.target }} \
-          -- -C link-arg=-lgcc -C link-arg=-lstdc++ -C link-arg=-lc -C link-arg=-lm -C link-arg=-lpthread
+          RUSTFLAGS: "-L /usr/lib/gcc-cross/aarch64-linux-gnu/11 -lstdc++ -lgcc -lc -lm -lpthread"
+        run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
+      
 
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
