@@ -49,9 +49,10 @@ jobs:
         run: |
           wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
           tar -xf zig-linux-x86_64-0.11.0.tar.xz
-          echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_ENV
-          echo "$PWD/zig-linux-x86_64-0.11.0" >> $PATH
+          echo "ZIG_PATH=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+          echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_PATH
           zig-linux-x86_64-0.11.0/zig version
+          
 
       - name: Set Zig path
         run: echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
