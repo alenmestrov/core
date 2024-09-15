@@ -44,7 +44,7 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             libssl-dev pkg-config build-essential clang libclang-dev \
-            libc6-dev-arm64-cross      
+            libc6-dev-arm64-cross libstdc++-11-dev-arm64-cross
 
       - name: Install and configure Zig
         run: |
@@ -93,14 +93,15 @@ jobs:
           AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
           TARGET_CC: aarch64-linux-gnu-gcc
           TARGET_CXX: aarch64-linux-gnu-g++
+          TARGET_AR: aarch64-linux-gnu-ar
           ZIG: ${{ env.ZIG_PATH }}
           OPENSSL_DIR: ${{ env.OPENSSL_DIR }}
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
-          CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=1
-          RUSTFLAGS: "-L /usr/lib/gcc-cross/aarch64-linux-gnu/11 -lstdc++ -lgcc -lc -lm -lpthread"
+          CXX_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include/c++
+          RUSTFLAGS: "-C link-arg=-lstdc++"
         run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
       
 
