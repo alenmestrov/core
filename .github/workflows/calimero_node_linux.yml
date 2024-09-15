@@ -51,19 +51,15 @@ jobs:
           libzstd-dev \
           clang
 
-      # - name: Install and configure Zig
-      #   run: |
-      #     wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
-      #     tar -xf zig-linux-x86_64-0.11.0.tar.xz
-      #     echo "ZIG_PATH=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
-      #     echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_PATH
-      #     zig-linux-x86_64-0.11.0/zig version
-      #     echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+      - name: Install and configure Zig
+        run: |
+          wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
+          tar -xf zig-linux-x86_64-0.11.0.tar.xz
+          echo "ZIG_PATH=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+          echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_PATH
+          zig-linux-x86_64-0.11.0/zig version
+          echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
 
-      # - name: Check for pthread
-      #   run: |
-      #     find /usr -name "libpthread*"
-        
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -81,12 +77,6 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_SYSROOT_DIR=/" >> $GITHUB_ENV
           echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
-
-
-      # - name: Verify installed libraries
-      #   run: |
-      #     ldconfig -p | grep libc
-      #     ldconfig -p | grep pthread
 
       - name: Install cargo-zigbuild
         run: cargo install cargo-zigbuild
