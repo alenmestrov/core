@@ -37,7 +37,7 @@ jobs:
 
       - name: Install target for ${{ matrix.target }}
         run: rustup target add ${{ matrix.target }}
-
+      
       - name: Install dependencies for cross-compilation
         run: |
           sudo apt-get update
@@ -55,16 +55,14 @@ jobs:
           zig-linux-x86_64-0.11.0/zig version
           echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
 
-      - name: Check for stdbool.h
+      - name: Test Zig Compiler
         run: |
-          find /usr -name "stdbool.h" || echo "stdbool.h not found"
-          find /usr -name "c.h" || echo "c.h not found"
+          zig cc --target=aarch64-linux-gnu -o meroctl_aarch64 -c main.c
+          echo "Zig compiled successfully"
 
-      - name: Print compiler include paths
+      - name: Check for pthread
         run: |
-          echo "Compiler include paths for aarch64:"
-          aarch64-linux-gnu-gcc -print-search-dirs
-          aarch64-linux-gnu-gcc -v -E -x c /dev/null
+          find /usr -name "libpthread*"
         
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -101,7 +99,7 @@ jobs:
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
           CXX_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include/c++
-          RUSTFLAGS: "-C link-arg=-lstdc++"
+          RUSTFLAGS: "-C link-arg=-lgcc -C link-arg=-lc -C link-arg=-lstdc++ -C link-arg=-pthread"
         run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
       
 
