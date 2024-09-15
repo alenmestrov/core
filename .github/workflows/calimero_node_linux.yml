@@ -43,8 +43,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            libssl-dev pkg-config
+            libssl-dev pkg-config build-essential clang libclang-dev \
+            libc6-dev-arm64-cross      
 
+      - name: Install and configure Zig
+        run: |
+          wget https://ziglang.org/download/0.11.0/zig-linux-x86_64-0.11.0.tar.xz
+          tar -xf zig-linux-x86_64-0.11.0.tar.xz
+          echo "ZIG_PATH=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+          echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_PATH
+          zig-linux-x86_64-0.11.0/zig version
+          echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+
+      - name: Check for stdbool.h
+        run: |
+          find /usr -name "stdbool.h" || echo "stdbool.h not found"
+          find /usr -name "c.h" || echo "c.h not found"
+
+      - name: Print compiler include paths
+        run: |
+          echo "Compiler include paths for aarch64:"
+          aarch64-linux-gnu-gcc -print-search-dirs
+          aarch64-linux-gnu-gcc -v -E -x c /dev/null
+        
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -60,19 +81,25 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_SYSROOT_DIR=/" >> $GITHUB_ENV
 
+
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild
+
       - name: Build meroctl for AArch64
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
+          TARGET_CC: aarch64-linux-gnu-gcc
+          TARGET_CXX: aarch64-linux-gnu-g++
+          ZIG: ${{ env.ZIG_PATH }}
           OPENSSL_DIR: ${{ env.OPENSSL_DIR }}
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
-          AR: aarch64-linux-gnu-ar
-          RANLIB: aarch64-linux-gnu-ranlib
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build -p meroctl --release --target ${{ matrix.target }}
+          C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
+        run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
 
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
