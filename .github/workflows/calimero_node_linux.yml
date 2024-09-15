@@ -55,11 +55,6 @@ jobs:
           zig-linux-x86_64-0.11.0/zig version
           echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
 
-      - name: Test Zig Compiler
-        run: |
-          zig cc --target=aarch64-linux-gnu -o meroctl_aarch64 -c main.c
-          echo "Zig compiled successfully"
-
       - name: Check for pthread
         run: |
           find /usr -name "libpthread*"
