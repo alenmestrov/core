@@ -54,6 +54,17 @@ jobs:
           echo "$PWD/zig-linux-x86_64-0.11.0" >> $GITHUB_PATH
           zig-linux-x86_64-0.11.0/zig version
           echo "CARGO_ZIGBUILD_ZIG=$PWD/zig-linux-x86_64-0.11.0/zig" >> $GITHUB_ENV
+
+      - name: Check for stdbool.h
+        run: |
+          find /usr -name "stdbool.h" || echo "stdbool.h not found"
+          find /usr -name "c.h" || echo "c.h not found"
+
+      - name: Print compiler include paths
+        run: |
+          echo "Compiler include paths for aarch64:"
+          aarch64-linux-gnu-gcc -print-search-dirs
+          aarch64-linux-gnu-gcc -v -E -x c /dev/null
         
       - name: Download and set up OpenSSL for cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
