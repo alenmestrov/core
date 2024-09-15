@@ -55,7 +55,7 @@ impl AdminConfig {
     }
 }
 
-// Embed the admin-ui build directory into the binary ts
+// Embed the admin-ui build directory into the 
 static REACT_STATIC_FILES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../node-ui/build");
 
 pub(crate) fn setup(
