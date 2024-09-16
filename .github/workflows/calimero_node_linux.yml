@@ -27,6 +27,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Install Node.js (version 20) and pnpm
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      # Install and build frontend
+      - name: Install node-ui dependencies with pnpm
+        run: pnpm install --prefix ./node-ui
+
+      - name: Build node-ui
+        run: pnpm --filter ./node-ui run build
+
       - name: Setup rust toolchain
         run: rustup toolchain install stable --profile minimal
 
@@ -37,6 +53,11 @@ jobs:
 
       - name: Install target for ${{ matrix.target }}
         run: rustup target add ${{ matrix.target }}
+
+      - name: Install Zig for cross-compilation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zig
 
       - name: Install dependencies for cross-compilation
         run: |
@@ -67,12 +88,7 @@ jobs:
           PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
-          AR: aarch64-linux-gnu-ar
-          RANLIB: aarch64-linux-gnu-ranlib
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build -p meroctl --release --target ${{ matrix.target }}
+        run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
 
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'

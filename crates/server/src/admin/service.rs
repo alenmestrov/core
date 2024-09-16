@@ -4,22 +4,22 @@ use std::error::Error;
 use std::str;
 use std::sync::Arc;
 
-use axum::body::Body;
-use axum::http::{header, HeaderMap, HeaderValue, Response, StatusCode};
+use axum::body::{Body, Bytes};
+use axum::http::{header, HeaderMap, HeaderValue, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::routing::{delete, get, post};
 use axum::{Extension, Router};
-use calimero_context::ContextManager;
 use calimero_store::Store;
 use eyre::Report;
+use include_dir::{include_dir, Dir, File};
 use libp2p::identity::Keypair;
+use mime_guess::from_path;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string as to_json_string};
-use tower_http::services::{ServeDir, ServeFile};
-use tower_http::set_status::SetStatus;
 use tower_sessions::{MemoryStore, SessionManagerLayer};
 use tracing::info;
 
+use super::handlers::did::delete_did_handler;
 use super::storage::ssl::get_ssl;
 use crate::admin::handlers::add_client_key::{
     add_client_key_handler, generate_jwt_token_handler, refresh_jwt_token_handler,
@@ -34,11 +34,13 @@ use crate::admin::handlers::context::{
     get_context_handler, get_context_identities_handler, get_context_storage_handler,
     get_context_users_handler, get_contexts_handler, join_context_handler, update_application_id,
 };
-use crate::admin::handlers::fetch_did::fetch_did_handler;
+use crate::admin::handlers::did::fetch_did_handler;
 use crate::admin::handlers::root_keys::{create_root_key_handler, delete_auth_keys_handler};
 use crate::config::ServerConfig;
-use crate::middleware;
 use crate::middleware::auth::AuthSignatureLayer;
+#[cfg(feature = "host_layer")]
+use crate::middleware::host::HostLayer;
+use crate::{middleware, AdminState};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[non_exhaustive]
@@ -54,18 +56,13 @@ impl AdminConfig {
     }
 }
 
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct AdminState {
-    pub store: Store,
-    pub keypair: Keypair,
-    pub ctx_manager: ContextManager,
-}
+// Embed the admin-ui build directory into the binary
+static REACT_STATIC_FILES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../node-ui/build");
 
 pub(crate) fn setup(
     config: &ServerConfig,
     store: Store,
-    ctx_manager: ContextManager,
+    shared_state: Arc<AdminState>,
 ) -> Option<(&'static str, Router)> {
     let _ = match &config.admin {
         Some(config) if config.enabled => config,
@@ -80,11 +77,6 @@ pub(crate) fn setup(
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store).with_secure(false);
 
-    let shared_state = Arc::new(AdminState {
-        store: store.clone(),
-        keypair: config.identity.clone(),
-        ctx_manager,
-    });
     let protected_router = Router::new()
         .route("/root-key", post(create_root_key_handler))
         .route("/install-application", post(install_application_handler))
@@ -93,7 +85,7 @@ pub(crate) fn setup(
             "/applications/:app_id",
             get(get_application_details_handler),
         )
-        .route("/did", get(fetch_did_handler))
+        .route("/did", get(fetch_did_handler).delete(delete_did_handler))
         .route("/contexts", post(create_context_handler))
         .route("/contexts/:context_id", delete(delete_context_handler))
         .route("/contexts/:context_id", get(get_context_handler))
@@ -113,7 +105,7 @@ pub(crate) fn setup(
             "/contexts/:context_id/identities",
             get(get_context_identities_handler),
         )
-        .route("/contexts/:context_id/join", post(join_context_handler))
+        .route("/contexts/join", post(join_context_handler))
         .route("/contexts", get(get_contexts_handler))
         .route("/identity/keys", delete(delete_auth_keys_handler))
         .route("/refresh-jwt-token", post(refresh_jwt_token_handler))
@@ -145,7 +137,7 @@ pub(crate) fn setup(
             "/dev/contexts",
             get(get_contexts_handler).post(create_context_handler),
         )
-        .route("/dev/contexts/:context_id/join", post(join_context_handler))
+        .route("/dev/contexts/join", post(join_context_handler))
         .route(
             "/dev/contexts/:context_id/application",
             post(update_application_id),
@@ -186,9 +178,20 @@ pub(crate) fn setup(
     Some((admin_path, admin_router))
 }
 
-pub(crate) fn site(
-    config: &ServerConfig,
-) -> Option<(&'static str, ServeDir<SetStatus<ServeFile>>)> {
+/// Creates a router for serving static node-ui files and providing fallback to `index.html` for SPA routing.
+///
+/// This function checks if the admin dashboard is enabled in the provided configuration.
+/// If the admin site is enabled, it returns a router that serves embedded static files
+/// and routes all SPA-related requests (like `/admin-dashboard/`) to `index.html`.
+///
+/// # Parameters
+/// - `config`: A reference to the server configuration that contains the admin site settings.
+///
+/// # Returns
+/// - `Option<(&'static str, Router)>`: If the admin site is enabled, it returns a tuple containing
+///   the base path ("/admin-dashboard") and the router for that path. If the admin site is disabled,
+///   it returns `None`.
+pub(crate) fn site(config: &ServerConfig) -> Option<(&'static str, Router)> {
     let _config = match &config.admin {
         Some(config) if config.enabled => config,
         _ => {
@@ -196,14 +199,71 @@ pub(crate) fn site(
             return None;
         }
     };
+
     let path = "/admin-dashboard";
 
-    let react_static_files_path = "./node-ui/build";
-    let react_app_serve_dir = ServeDir::new(react_static_files_path).not_found_service(
-        ServeFile::new(format!("{react_static_files_path}/index.html")),
-    );
+    // Create a router to serve static files and fallback to index.html
+    let router = Router::new()
+        .route("/", get(serve_embedded_file)) // Match /admin-dashboard
+        .route("/*path", get(serve_embedded_file)); // Match /admin-dashboard/* for all sub-paths
 
-    Some((path, react_app_serve_dir))
+    Some((path, router))
+}
+
+/// Serves embedded static files or falls back to `index.html` for SPA routing.
+///
+/// This function handles requests by removing the "/admin-dashboard/" prefix from the requested URI path,
+/// and then attempting to serve the requested file from the embedded directory. If the requested file
+/// is not found, and the request is for the root path or a client-side route, it serves `index.html`.
+///
+/// # Parameters
+/// - `uri`: The requested URI, which will be used to determine the file path in the embedded directory.
+///
+/// # Returns
+/// - `Result<impl IntoResponse, StatusCode>`: If the requested file is found, it serves the file with the correct MIME type.
+///   If the file is not found, it returns a 404 status code.
+async fn serve_embedded_file(uri: Uri) -> Result<impl IntoResponse, StatusCode> {
+    // Extract the path from the URI, removing the "/admin-dashboard/" prefix
+    let mut path = uri.path().trim_start_matches("/admin-dashboard/");
+
+    // Remove any leading "/" from the path to match the embedded directory structure
+    path = path.trim_start_matches('/');
+
+    // Try to find the requested file in the embedded directory
+    if let Some(file) = REACT_STATIC_FILES.get_file(path) {
+        // Serve the static file if it exists
+        return Ok(serve_file(file).await?);
+    }
+
+    // Otherwise, serve index.html for SPA routes
+    let index_file = REACT_STATIC_FILES
+        .get_file("index.html")
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(serve_file(index_file).await?)
+}
+
+/// Serves a static file with the correct MIME type.
+///
+/// This function builds a `Response` with the appropriate content type for the given file
+/// and serves the file's content. It uses the `mime_guess` crate to determine the MIME type
+/// based on the file extension.
+///
+/// # Parameters
+/// - `file`: A reference to the embedded file to be served.
+///
+/// # Returns
+/// - `Result<Response<Body>, StatusCode>`: If the response is successfully built, it returns the response.
+///   If there is an error building the response, it returns an internal server error (500).
+async fn serve_file(file: &File<'_>) -> Result<Response<Body>, StatusCode> {
+    // Guess the MIME type based on the file path (important for JS, CSS, etc.)
+    let mime_type = from_path(file.path()).first_or_octet_stream();
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", mime_type.to_string())
+        .body(Body::from(Bytes::copy_from_slice(file.contents())))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]

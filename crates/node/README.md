@@ -55,59 +55,74 @@ the transaction, the sender of a transaction and the outcomen sender channel.
 
 TODO: Write about the transaction handling process and draw sequence diagram
 
-### Coordinator joining ceremony
+### Catchup
 
-Coorindator joining ceremony is the process of acquiring the coordinator node
-for the context.
+The catchup process is initiated by the `ClientPeer` by opening a stream to the
+`ServerPeer`.
 
-Setup:
+Once the connection is established, the `ClientPeer` requests the application
+information from the ContextConfig contract. If the application blob id has
+changed, the `ClientPeer` attempts to fetch new application blob and store it in
+the store. Depending on the application source, the `ClientPeer` either fetches
+the application blob from the remote BlobRegistry or requests the `ServerPeer`
+to send the application blob.
 
-- Coordinators and peers are subscribed to the dedicated coordinator ceremony
-  topic.
-- Context creator sends a message to the topic requesting a coordinator.
-- Interested coordinators send a message to the topic replying with the intent
-  to coordinate.
-- Context creator selects a coordinator from the interested coordinators.
-- Context creator stores `PeerId` of the selected coordinator.
-- Context creator sends a message to the topic with the information about the
-  selected coordinator.
-- Selected coordinator joins the context topic, while other coordinators clear
-  pending request.
+After the application is updated, the `ClientPeer` requests the transactions
+from the `ServerPeer`. `ServerPeer` collects executed and pending transactions
+from the given hash to the latest transaction. The transactions are sent in
+batches to the `ClientPeer` which applies the transactions to the store.
 
-Following diagram depicts the coordinator joining ceremony which is initiated by
-a context creator peer. All the messages exchanged in diagram are GossipSub
-messages going throught dedicated coordinator ceremony topic. Additionally, node
-has a interval tick which is used to clean up pending requests and offers.
+Following diagram depicts the catchup process. The `ClientPeer` in this scenario
+is regular peer (not coordinator). The `ServerPeer` can be either regular peer
+or coordinator.
 
 ```mermaid
 sequenceDiagram
-    activate Peer
-    Peer->>Peer:Generate request id
-    Peer->>Coordinator:Send [Request]
-    Peer->>Peer:Set pending request
-    deactivate Peer
+    ClientPeer->>+ServerPeer: OpenStream
+    Activate ClientPeer
 
-    Coordinator->>+Coordinator:Handle [Request]
-    Coordinator->>Peer:Send [Offer]
-    Coordinator->>-Coordinator:Set pending offer
+    ClientPeer->>+ContextConfigContract: GetApplication(ctx_id)
+    ContextConfigContract-->-ClientPeer: Application
 
-    Peer->>+Peer:Handle [Offer]
-    alt If pending request exists
-        Peer->>Coordinator: Send [OfferAccepted]
-        Peer->>Peer:Update context with the coordinator `PeerId`
-        Peer->>Peer:Clear pending request
-    else
-        Peer->>-Coordinator: Send [OfferDeclined]
+    ClientPeer->>ClientPeer: GetApplication(app_id)
+
+    opt If ApplicationBlobId has changed
+
+    alt ApplicationSource == HTTP
+    ClientPeer->>BlobRegistry: GetApplicationBlob
+    BlobRegistry-->>ClientPeer: ApplicationBlob
+    ClientPeer->>ClientPeer: blobs.Put(app)
+
+    else ApplicationSource == Path
+    ClientPeer->>ServerPeer: Send [ApplicationBlobRequest(app_id)]
+    ServerPeer->>ClientPeer: Send [ApplicationBlobSize]
+    loop
+    ServerPeer->>ClientPeer: Send [ApplicationBlobChunk]
+    ClientPeer->>ClientPeer: blobs.Put(app)
     end
 
-    Coordinator->>+Coordinator:Handle [OfferAccepted]
-    Coordinator->>Coordinator:Join context topic
-    Coordinator->>-Coordinator:Clear pending offer
+    end
 
-    Coordinator->>+Coordinator:Handle [OfferDeclined]
-    Coordinator->>-Coordinator:Clear pending offer
+    ClientPeer->>ClientPeer: store.PutApplication(app)
+
+    end
+
+    ClientPeer->>ServerPeer: Send [TransactionsRequest(ctx_id, hash)]
+    ServerPeer->>ServerPeer: CollectExecutedAndPendingTransactions(ctx_id, hash)
+
+    loop
+    ServerPeer->>-ClientPeer: Send [TransactionsBatch]
+    ClientPeer->>ClientPeer: ApplyBatch
+    loop For Transaction in Batch
+    alt Transaction.Status == Executed
+    ClientPeer->>ClientPeer: ExecuteTransaction
+
+    else Transaction.Status == Pending
+    ClientPeer->>ClientPeer: ExecuteTransaction
+    end
+
+    end
+    end
+
+    Deactivate ClientPeer
 ```
-
-### Catchup
-
-TODO: Write about the catchup process and draw sequence diagram
