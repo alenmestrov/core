@@ -20,16 +20,8 @@ jobs:
           # Check if there are changes in the node-ui folder excluding the build directory
           if git diff --quiet HEAD^ HEAD -- 'node-ui' ':!node-ui/build'; then
             echo "No changes in node-ui (excluding build folder)."
-            echo "no_changes=true" >> $GITHUB_ENV
-          else
-            echo "Changes found in node-ui (excluding build folder)."
-            echo "no_changes=false" >> $GITHUB_ENV
+            exit 0
           fi
-
-      # Stop the workflow if no changes were found
-      - name: Stop if no changes
-        if: env.no_changes == 'true'
-        run: exit 0
 
       # Set up Node.js and install pnpm
       - name: Set up Node.js
