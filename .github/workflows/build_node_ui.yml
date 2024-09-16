@@ -21,21 +21,34 @@ jobs:
       - name: Check for changes in node-ui (excluding build folder)
         id: check_changes
         run: |
+          # Initialize the flag to false
+          echo "CHANGES_DETECTED=false" >> $GITHUB_ENV
+
           # Check if HEAD^ exists (i.e., there are at least two commits)
           if git rev-parse HEAD^ >/dev/null 2>&1; then
             # If HEAD^ exists, check for changes in the node-ui folder excluding the build directory
             if git diff --quiet HEAD^ HEAD -- 'node-ui' ':!node-ui/build'; then
               echo "No changes in node-ui (excluding build folder)."
-              exit 0
+            else
+              echo "Changes detected in node-ui."
+              echo "CHANGES_DETECTED=true" >> $GITHUB_ENV
             fi
           else
             # If HEAD^ doesn't exist (only one commit), check for changes in the first commit
             if git diff-tree --no-commit-id --name-only -r HEAD -- 'node-ui' ':!node-ui/build' | grep .; then
               echo "Changes detected in node-ui."
+              echo "CHANGES_DETECTED=true" >> $GITHUB_ENV
             else
               echo "No changes in node-ui (excluding build folder)."
-              exit 0
             fi
+          fi
+
+      # Explicit exit if no changes detected
+      - name: Exit if no changes detected
+        run: |
+          if [ "$CHANGES_DETECTED" = "false" ]; then
+            echo "No changes detected, exiting."
+            exit 0
           fi
 
       # Set up Node.js and install pnpm
