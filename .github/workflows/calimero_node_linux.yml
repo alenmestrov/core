@@ -96,7 +96,6 @@ jobs:
           RUSTFLAGS: "-C link-arg=-lstdc++ -C link-arg=-lpthread -C link-arg=-lc"
         run: cargo zigbuild -p meroctl --release --target ${{ matrix.target }}
       
-
       - name: Build meroctl for x86_64
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: cargo build -p meroctl --release --target ${{ matrix.target }}
