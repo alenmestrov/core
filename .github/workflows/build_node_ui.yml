@@ -43,38 +43,36 @@ jobs:
             fi
           fi
 
-      # Explicit exit if no changes detected
-      - name: Exit if no changes detected
-        run: |
-          if [ "$CHANGES_DETECTED" = "false" ]; then
-            echo "No changes detected, exiting."
-            exit 0
-          fi
-
-      # Set up Node.js and install pnpm
+      # Conditional steps, executed only if changes were detected
       - name: Set up Node.js
+        if: env.CHANGES_DETECTED == 'true'
         uses: actions/setup-node@v2
         with:
           node-version: '20'
-
+ 
       - name: Install pnpm
+        if: env.CHANGES_DETECTED == 'true'
         run: npm install -g pnpm
 
       # Install dependencies and build node-ui
       - name: Install frontend dependencies with pnpm
+        if: env.CHANGES_DETECTED == 'true'
         run: pnpm install --prefix ./node-ui
 
       - name: Build node-ui
+        if: env.CHANGES_DETECTED == 'true'
         run: pnpm --filter ./node-ui run build
 
       # Set up Git credentials for committing
       - name: Set up Git user
+        if: env.CHANGES_DETECTED == 'true'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
       # Add changes (build folder) and commit
       - name: Add and commit build folder
+        if: env.CHANGES_DETECTED == 'true'
         run: |
           git add ./node-ui/build
           git commit --no-verify -m "Automated commit of node-ui build"
@@ -83,6 +81,7 @@ jobs:
 
       # Push changes to the repository
       - name: Push changes
+        if: env.CHANGES_DETECTED == 'true'
         run: git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
