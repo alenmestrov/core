@@ -12,7 +12,6 @@ use axum::{Extension, Router};
 use calimero_store::Store;
 use eyre::Report;
 use include_dir::{include_dir, Dir, File};
-use libp2p::identity::Keypair;
 use mime_guess::from_path;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string as to_json_string};
@@ -56,7 +55,7 @@ impl AdminConfig {
     }
 }
 
-// Embed the admin-ui build directory into the binary
+// Embed the admin-ui build directory into the 
 static REACT_STATIC_FILES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../node-ui/build");
 
 pub(crate) fn setup(
