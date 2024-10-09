@@ -102,14 +102,18 @@ jobs:
           echo "Contents of admin-dashboard after copy:"
           ls -la ./admin-dashboard
 
-      - name: Add, commit and push changes to target repo
+      - name: Push changes to admin-dashboard repo
         if: env.CHANGES_DETECTED == 'true'
         run: |
-          echo "Current directory before cd: $PWD"
-          cd ./admin-dashboard
-          echo "Current directory after cd: $PWD"
+          git clone https://${{ secrets.ADMIN_DASHBOARD_PAT }}@github.com/alenmestrov/admin-dashboard.git temp_admin_dashboard
+          cd temp_admin_dashboard
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          rm -rf ./* # Remove all files in admin-dashboard
+          cp -r ../node-ui/* . # Copy all files from node-ui to admin-dashboard
+          rm -rf build # Remove the build folder
           git add -A
-          git commit -m "Automated push of node-ui changes"
-          git push https://${{ secrets.PUSH_TOKEN }}@github.com/alenmestrov/admin-dashboard.git master
+          git commit -m "Automated push of node-ui changes (excluding build)" || echo "No changes to commit"
+          git push https://${{ secrets.ADMIN_DASHBOARD_PAT }}@github.com/alenmestrov/admin-dashboard.git HEAD:master
         env:
-          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
+          ADMIN_DASHBOARD_PAT: ${{ secrets.ADMIN_DASHBOARD_PAT }}
