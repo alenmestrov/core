@@ -111,7 +111,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Switch to root directory
-        run: cd ../../
+        run: cd ../../../
 
       - name: Print current directory
         run: |
