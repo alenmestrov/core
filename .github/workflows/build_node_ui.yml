@@ -81,7 +81,28 @@ jobs:
           pnpm build
           git add .
           git commit -m "Automated build of node-ui" || echo "No changes to commit"
-          git push origin HEAD:master
+          
+          # Retry loop
+          max_attempts=5
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt to push changes..."
+            git fetch origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              echo "Successfully pushed changes."
+              break
+            else
+              echo "Push failed. Retrying in 5 seconds..."
+              sleep 5
+              attempt=$((attempt + 1))
+            fi
+          done
+
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Failed to push changes after $max_attempts attempts."
+            exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
