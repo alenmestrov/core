@@ -74,39 +74,44 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Build node ui and commit changes
+      - name: Build node ui
         if: env.CHANGES_DETECTED == 'true'
         run: |
-          cd ./node-ui
+          cd $GITHUB_WORKSPACE/node-ui
           pnpm build
-          
-          
-          # git fetch origin master
-          # git rebase origin/master
-          # git add .
-          # git commit -m "Automated build of node-ui" || echo "No changes to commit"
-          
-          # # Retry loop
-          # max_attempts=5
-          # attempt=1
-          # while [ $attempt -le $max_attempts ]; do
-          #   echo "Attempt $attempt to push changes..."
-          #   git fetch origin master
-          #   git rebase origin/master
-          #   if git push origin HEAD:master; then
-          #     echo "Successfully pushed changes."
-          #     break
-          #   else
-          #     echo "Push failed. Retrying in 5 seconds..."
-          #     sleep 5
-          #     attempt=$((attempt + 1))
-          #   fi
-          # done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # if [ $attempt -gt $max_attempts ]; then
-          #   echo "Failed to push changes after $max_attempts attempts."
-          #   exit 1
-          # fi
+      - name: Commit and push changes
+        if: env.CHANGES_DETECTED == 'true'
+        run: |
+          cd $GITHUB_WORKSPACE
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ./node-ui/build
+          git commit -m "Automated build of node-ui" || echo "No changes to commit"
+          
+          # Retry loop
+          max_attempts=5
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt to push changes..."
+            git fetch origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              echo "Successfully pushed changes."
+              break
+            else
+              echo "Push failed. Retrying in 5 seconds..."
+              sleep 5
+              attempt=$((attempt + 1))
+            fi
+          done
+
+          if [ $attempt -gt $max_attempts ]; then
+            echo "Failed to push changes after $max_attempts attempts."
+            exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -121,17 +126,20 @@ jobs:
       - name: Clone target repository
         if: env.CHANGES_DETECTED == 'true'
         run: |
+          cd $GITHUB_WORKSPACE
           git clone https://github.com/alenmestrov/admin-dashboard.git
 
       - name: Copy entire node-ui to target repo
         if: env.CHANGES_DETECTED == 'true'
         run: |
-          cp -r ./core/node-ui/src/* ./admin-dashboard/src/
+          cp -r $GITHUB_WORKSPACE/node-ui/src/* $GITHUB_WORKSPACE/admin-dashboard/src/
 
       - name: Push changes to admin-dashboard repo
         if: env.CHANGES_DETECTED == 'true'
         run: |
-          cd admin-dashboard
+          cd $GITHUB_WORKSPACE/admin-dashboard
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add -A
           git commit -m "Automated push of node-ui changes (excluding build)" || echo "No changes to commit"
           git push https://${{ secrets.PUSH_TOKEN }}@github.com/alenmestrov/admin-dashboard.git master
