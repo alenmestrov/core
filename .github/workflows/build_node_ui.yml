@@ -104,6 +104,6 @@ jobs:
           cd admin-dashboard
           git add -A
           git commit -m "Automated push of node-ui changes (excluding build)" || echo "No changes to commit"
-          git push https://${{ secrets.PUSH_TOKEN }}@github.com/calimero-network/admin-dashboard.git master
+          git push https://${{ secrets.PUSH_TOKEN }}@github.com/alenmestrov/admin-dashboard.git master
         env:
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
