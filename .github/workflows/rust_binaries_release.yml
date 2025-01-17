@@ -157,18 +157,8 @@ jobs:
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           OPENSSL_STATIC: ${{ env.OPENSSL_STATIC }}
-          # Add these environment variables to force older C standard
-          CFLAGS: "-std=gnu99"
-          CXXFLAGS: "-std=gnu++11"
         run: |
-          # Create .cargo/config.toml with linker configuration
-          mkdir -p .cargo
-          cat > .cargo/config.toml << EOF
-          [target.aarch64-unknown-linux-gnu]
-          linker = "aarch64-linux-gnu-gcc"
-          rustflags = ["-C", "target-feature=+crt-static"]
-          EOF
-          
+          # Remove cargo-zigbuild
           cargo build ${{ steps.cargo_args.outputs.args }}
 
       - name: Build binaries
