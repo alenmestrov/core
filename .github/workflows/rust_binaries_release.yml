@@ -109,7 +109,8 @@ jobs:
           wget https://www.openssl.org/source/openssl-1.1.1k.tar.gz
           tar -xzf openssl-1.1.1k.tar.gz
           cd openssl-1.1.1k
-          export CFLAGS="-std=c99"
+          export CFLAGS="-std=c99 -D_GNU_SOURCE -I/usr/aarch64-linux-gnu/include"
+          export CROSS_COMPILE="aarch64-linux-gnu-"
           ./Configure linux-aarch64 --prefix=$HOME/openssl-aarch64 \
             --cross-compile-prefix=aarch64-linux-gnu- \
             no-asm \
