@@ -110,12 +110,12 @@ jobs:
           tar -xzf openssl-1.1.1g.tar.gz
           cd openssl-1.1.1g
           # More restrictive C99 flags and additional compiler options
-          export CC=aarch64-linux-gnu-gcc
-          export CXX=aarch64-linux-gnu-g++
+          export CROSS_COMPILE=""  # Clear CROSS_COMPILE to prevent double prefix
+          export CC="aarch64-linux-gnu-gcc"
+          export CXX="aarch64-linux-gnu-g++"
           export CFLAGS="-std=gnu99 -O2 -fPIC -D_GNU_SOURCE -I/usr/aarch64-linux-gnu/include"
           export LDFLAGS="-L/usr/aarch64-linux-gnu/lib"
           ./Configure linux-aarch64 --prefix=$HOME/openssl-aarch64 \
-            --cross-compile-prefix=aarch64-linux-gnu- \
             no-asm \
             no-shared \
             no-async \
