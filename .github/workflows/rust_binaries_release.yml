@@ -147,8 +147,9 @@ jobs:
       - name: Build binaries
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         env:
-          C_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include
-          CXX_INCLUDE_PATH: /usr/lib/gcc-cross/aarch64-linux-gnu/11/include/c++
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           OPENSSL_DIR: ${{ env.OPENSSL_DIR }}
           OPENSSL_LIB_DIR: ${{ env.OPENSSL_LIB_DIR }}
           OPENSSL_INCLUDE_DIR: ${{ env.OPENSSL_INCLUDE_DIR }}
@@ -156,8 +157,19 @@ jobs:
           PKG_CONFIG_ALLOW_CROSS: ${{ env.PKG_CONFIG_ALLOW_CROSS }}
           PKG_CONFIG_SYSROOT_DIR: ${{ env.PKG_CONFIG_SYSROOT_DIR }}
           OPENSSL_STATIC: ${{ env.OPENSSL_STATIC }}
-          RUSTFLAGS: '-C link-arg=-lstdc++ -C link-arg=-lpthread -C link-arg=-lc'
-        run: cargo zigbuild ${{ steps.cargo_args.outputs.args }}
+          # Add these environment variables to force older C standard
+          CFLAGS: "-std=gnu99"
+          CXXFLAGS: "-std=gnu++11"
+        run: |
+          # Create .cargo/config.toml with linker configuration
+          mkdir -p .cargo
+          cat > .cargo/config.toml << EOF
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          rustflags = ["-C", "target-feature=+crt-static"]
+          EOF
+          
+          cargo build ${{ steps.cargo_args.outputs.args }}
 
       - name: Build binaries
         if: matrix.target != 'aarch64-unknown-linux-gnu'
